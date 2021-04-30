@@ -1,18 +1,15 @@
 ---
-page_title: "scaffolding Provider"
+page_title: "ImprovMX Provider"
 subcategory: ""
 description: |-
-  
 ---
 
-# scaffolding Provider
-
-
+# ImprovMX Provider
 
 ## Example Usage
 
 ```terraform
-provider "scaffolding" {
+provider "improvmx" {
   # example configuration here
 }
 ```

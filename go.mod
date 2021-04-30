@@ -1,4 +1,4 @@
-module github.com/hashicorp/terraform-provider-scaffolding
+module github.com/christippett/terraform-provider-improvmx
 
 go 1.15
 

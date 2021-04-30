@@ -1,18 +1,18 @@
 ---
-page_title: "scaffolding_data_source Data Source - terraform-provider-scaffolding"
+page_title: "ImprovMX Domain Data Source - terraform-provider-improvmx"
 subcategory: ""
 description: |-
   Sample data source in the Terraform provider scaffolding.
 ---
 
-# Data Source `scaffolding_data_source`
+# Data Source `improvmx_domain`
 
 Sample data source in the Terraform provider scaffolding.
 
 ## Example Usage
 
 ```terraform
-data "scaffolding_data_source" "example" {
+data "improvmx_domain" "example" {
   sample_attribute = "foo"
 }
 ```
@@ -26,5 +26,3 @@ data "scaffolding_data_source" "example" {
 ### Optional
 
 - **id** (String, Optional) The ID of this resource.
-
-
