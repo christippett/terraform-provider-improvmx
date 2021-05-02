@@ -5,7 +5,9 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
+	"net/http/httputil"
 	"strings"
 )
 
@@ -17,11 +19,13 @@ func NewClient(
 	apiKey string,
 	//optional, defaults to http.DefaultClient
 	httpClient *http.Client,
+	out io.Writer,
 ) Client {
 	c := &client{
 		apiKey:     apiKey,
 		url:        baseURL,
 		httpClient: httpClient,
+		out:        out,
 	}
 	if httpClient != nil {
 		c.httpClient = httpClient
@@ -31,46 +35,78 @@ func NewClient(
 	return c
 }
 
-func (c *client) AddDomain(ctx context.Context, domain Domain) (*Domain, error) {
-	var result DomainResponse
-	if err := c.apiCall(
-		ctx,
-		http.MethodPost,
-		"/domains/",
-		domain,
-		&result,
-	); err != nil {
-		return nil, err
-	}
-	return &result.Domain, nil
-}
-
-func (c *client) GetDomain(ctx context.Context, domain string) (*Domain, error) {
-	var result DomainResponse
-	if err := c.apiCall(
-		ctx,
-		http.MethodGet,
-		fmt.Sprintf("/domains/%s", domain),
-		nil,
-		&result,
-	); err != nil {
-		return nil, err
-	}
-	return &result.Domain, nil
-}
+/* DOMAIN ⌁⌁⌁⌁⌁⌁⌁⌁⌁⌁⌁⌁⌁⌁⌁⌁⌁⌁⌁⌁⌁⌁⌁⌁⌁⌁⌁⌁⌁⌁⌁⌁⌁⌁⌁⌁⌁⌁⌁⌁⌁⌁⌁⌁⌁⌁⌁⌁⌁⌁⌁⌁⌁⌁⌁⌁⌁⌁⌁⌁⌁⌁⌁⌁⌁⌁⌁ */
 
 func (c *client) ListDomains(ctx context.Context) (*[]Domain, error) {
-	var result DomainListResponse
-	if err := c.apiCall(
-		ctx,
-		http.MethodGet,
-		"/domains/",
-		nil,
-		&result,
-	); err != nil {
+	var result struct {
+		Domains *[]Domain `json:"domains,omitempty"`
+		Response
+	}
+	if err := c.apiCall(ctx, http.MethodGet, "/domains/", nil, &result); err != nil {
 		return nil, err
 	}
-	return &result.Domains, nil
+	return result.Domains, nil
+}
+
+func (c *client) AddDomain(ctx context.Context, domain *Domain) (*Domain, error) {
+	var result struct {
+		Domain *Domain `json:"domain,omitempty"`
+		Response
+	}
+
+	url := "/domains/"
+	if err := c.apiCall(ctx, http.MethodPost, url, domain, &result); err != nil {
+		return nil, err
+	}
+	return result.Domain, nil
+}
+
+func (c *client) GetDomain(ctx context.Context, domain *string) (*Domain, error) {
+	var result struct {
+		Domain *Domain `json:"domain,omitempty"`
+		Response
+	}
+
+	url := fmt.Sprintf("/domains/%s", *domain)
+	if err := c.apiCall(ctx, http.MethodGet, url, nil, &result); err != nil {
+		return nil, err
+	}
+	return result.Domain, nil
+}
+
+func (c *client) UpdateDomain(ctx context.Context, domain *Domain) (*Domain, error) {
+	var result struct {
+		Domain *Domain `json:"domain,omitempty"`
+		Response
+	}
+
+	url := fmt.Sprintf("/domains/%s", domain.Domain)
+	if err := c.apiCall(ctx, http.MethodPut, url, domain, &result); err != nil {
+		return nil, err
+	}
+	return result.Domain, nil
+}
+
+func (c *client) DeleteDomain(ctx context.Context, domain *Domain) error {
+	var result Response
+	url := fmt.Sprintf("/domains/%s", domain.Domain)
+	if err := c.apiCall(ctx, http.MethodDelete, url, nil, &result); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (c *client) CheckDomain(ctx context.Context, domain *Domain) (*Check, error) {
+	var result struct {
+		Records *Check `json:"records,omitempty"`
+		Response
+	}
+
+	url := fmt.Sprintf("/domains/%s/check", domain.Domain)
+	if err := c.apiCall(ctx, http.MethodGet, url, domain, &result); err != nil {
+		return nil, err
+	}
+	return result.Records, nil
 }
 
 func (c *client) handleResponseError(resp *http.Response) error {
@@ -80,12 +116,11 @@ func (c *client) handleResponseError(resp *http.Response) error {
 	}
 	if res.Errors != nil {
 		for k, v := range res.Errors {
-			fmt.Fprintf(c.debug, "error (%s): %s", k, strings.Join(v, "; "))
-			fmt.Fprintln(c.debug)
+			fmt.Fprintf(c.out, "error (%s): %s", k, strings.Join(v, "; "))
+			fmt.Fprintln(c.out)
 		}
 	}
 	return fmt.Errorf("response error: %s", http.StatusText(resp.StatusCode))
-
 }
 
 func (c *client) apiCall(
@@ -109,6 +144,14 @@ func (c *client) apiCall(
 	req.Header.Add("Authorization", "Basic  api:"+c.apiKey)
 	req.Header.Add("content-type", "application/json")
 
+	// Log request output to stdout
+	requestDump, err := httputil.DumpRequestOut(req, true)
+	if err != nil {
+		return fmt.Errorf("error dumping HTTP request: %v", err)
+	}
+	fmt.Fprintln(c.out, string(requestDump))
+	fmt.Fprintln(c.out)
+
 	req = req.WithContext(ctx)
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
@@ -116,6 +159,11 @@ func (c *client) apiCall(
 	}
 
 	defer resp.Body.Close()
+
+	// Log response output to stdout
+	responseDump, _ := httputil.DumpResponse(resp, true)
+	fmt.Fprintln(c.out, string(responseDump))
+	fmt.Fprintln(c.out)
 
 	if resp.StatusCode != http.StatusOK {
 		return c.handleResponseError(resp)

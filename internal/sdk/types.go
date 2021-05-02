@@ -11,15 +11,18 @@ import (
 
 type Client interface {
 	ListDomains(ctx context.Context) (*[]Domain, error)
-	GetDomain(ctx context.Context, domain string) (*Domain, error)
-	AddDomain(ctx context.Context, domain Domain) (*Domain, error)
+	AddDomain(ctx context.Context, domain *Domain) (*Domain, error)
+	GetDomain(ctx context.Context, domain *string) (*Domain, error)
+	UpdateDomain(ctx context.Context, domain *Domain) (*Domain, error)
+	DeleteDomain(ctx context.Context, domain *Domain) error
+	CheckDomain(ctx context.Context, domain *Domain) (*Check, error)
 }
 
 type client struct {
 	apiKey     string
 	url        string
 	httpClient *http.Client
-	debug      io.Writer
+	out        io.Writer
 }
 
 type DomainQuery struct {
@@ -46,24 +49,24 @@ type AccountResponse struct {
 }
 
 type Account struct {
-	BillingEmail   string       `json:"billing_email"`
-	CancelsOn      interface{}  `json:"cancels_on"`
-	CardBrand      string       `json:"card_brand"`
-	CompanyDetails string       `json:"company_details"`
-	CompanyName    string       `json:"company_name"`
-	CompanyVat     string       `json:"company_vat"`
-	Country        string       `json:"country"`
-	Created        int64        `json:"created"`
-	Email          string       `json:"email"`
-	Last4          string       `json:"last4"`
-	Limits         AccountLimit `json:"limits"`
-	LockReason     string       `json:"lock_reason"`
-	Locked         bool         `json:"locked"`
-	Password       bool         `json:"password"`
-	Plan           AccountPlan  `json:"plan"`
-	Premium        bool         `json:"premium"`
-	PrivacyLevel   int          `json:"privacy_level"`
-	RenewDate      int64        `json:"renew_date"`
+	BillingEmail   string        `json:"billing_email"`
+	CancelsOn      int64         `json:"cancels_on"`
+	CardBrand      string        `json:"card_brand"`
+	CompanyDetails string        `json:"company_details"`
+	CompanyName    string        `json:"company_name"`
+	CompanyVat     string        `json:"company_vat"`
+	Country        string        `json:"country"`
+	Created        int64         `json:"created"`
+	Email          string        `json:"email"`
+	Last4          string        `json:"last4"`
+	Limits         *AccountLimit `json:"limits"`
+	LockReason     string        `json:"lock_reason"`
+	Locked         bool          `json:"locked"`
+	Password       bool          `json:"password"`
+	Plan           *AccountPlan  `json:"plan"`
+	Premium        bool          `json:"premium"`
+	PrivacyLevel   int           `json:"privacy_level"`
+	RenewDate      int64         `json:"renew_date"`
 }
 
 type AccountLimit struct {
@@ -93,25 +96,16 @@ type WhitelabelResponse struct {
 	Response
 }
 
-type DomainListResponse struct {
-	Domains []Domain `json:"domains,omitempty"`
-	Response
-}
-
-type DomainResponse struct {
-	Domain Domain `json:"domain,omitempty"`
-	Response
-}
-
 type Domain struct {
-	Active            bool    `json:"active,omitempty"`
-	Domain            string  `json:"domain"`
-	Display           string  `json:"display,omitempty"`
-	DkimSelector      string  `json:"dkim_selector,omitempty"`
-	NotificationEmail string  `json:"notification_email,omitempty"`
-	Whitelabel        string  `json:"whitelabel,omitempty"`
-	Added             int64   `json:"added,omitempty"`
-	Aliases           []Alias `json:"aliases,omitempty"`
+	Active            bool     `json:"active,omitempty"`
+	Domain            string   `json:"domain"`
+	Display           string   `json:"display,omitempty"`
+	DkimSelector      string   `json:"dkim_selector,omitempty"`
+	NotificationEmail string   `json:"notification_email,omitempty"`
+	Webhook           string   `json:"webhook,omitempty"`
+	Whitelabel        string   `json:"whitelabel,omitempty"`
+	Added             int64    `json:"added,omitempty"`
+	Aliases           []*Alias `json:"aliases,omitempty"`
 }
 
 type Alias struct {
@@ -127,7 +121,7 @@ type SMTPCredential struct {
 }
 
 type CheckResponse struct {
-	Records []Check `json:"records"`
+	Records []*Check `json:"records"`
 	Response
 }
 
