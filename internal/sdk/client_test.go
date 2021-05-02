@@ -2,6 +2,7 @@ package improvmx
 
 import (
 	"context"
+	"net/http"
 	"os"
 	"testing"
 	"time"
@@ -12,21 +13,29 @@ func setupClient(t *testing.T) Client {
 	if apiKey == "" {
 		t.Fatal("'IMPROVMX_API_KEY' must be set for tests")
 	}
-	return NewClient("https://api.improvmx.com/v3", apiKey, nil, os.Stdout)
+
+	httpClient := http.Client{
+		Timeout: time.Second * 20,
+	}
+
+	return NewClient(
+		"https://api.improvmx.com/v3",
+		apiKey,
+		&httpClient,
+		os.Stdout,
+	)
 }
 
 func TestIntegration_ListDomains(t *testing.T) {
 	c := setupClient(t)
 	ctx := context.Background()
 
-	domain, err := c.AddDomain(ctx, &Domain{
-		Domain: "example.com",
-	})
+	domain, err := c.AddDomain(ctx, &Domain{Domain: "example.com"})
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	domains, err := c.ListDomains(ctx)
+	domains, err := c.ListDomains(ctx, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -38,51 +47,7 @@ func TestIntegration_ListDomains(t *testing.T) {
 	}
 }
 
-func TestIntegration_GetDomain(t *testing.T) {
-	c := setupClient(t)
-	ctx := context.Background()
-	now := time.Now().Unix()
-	d := "example.com"
-
-	domain, err := c.AddDomain(ctx, &Domain{
-		Domain: d,
-	})
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	got, err := c.GetDomain(ctx, &d)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	defer c.DeleteDomain(ctx, domain)
-
-	if got.Domain != d || !(got.Added > now) {
-		t.Errorf("domain returned unexpected object: %s", domain.Domain)
-	}
-}
-
-func TestIntegration_AddDomain(t *testing.T) {
-	c := setupClient(t)
-	ctx := context.Background()
-
-	domain, err := c.AddDomain(ctx, &Domain{
-		Domain:            "example.com",
-		NotificationEmail: "test@christippett.dev",
-	})
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	defer c.DeleteDomain(ctx, domain)
-
-	if domain.Domain != "example.com" {
-		t.Errorf("domain returned unexpected object: %s", domain.Domain)
-	}
-}
-
-func TestIntegration_UpdateDomain(t *testing.T) {
+func TestIntegration_DomainCRUD(t *testing.T) {
 	c := setupClient(t)
 	ctx := context.Background()
 
@@ -95,16 +60,65 @@ func TestIntegration_UpdateDomain(t *testing.T) {
 	}
 
 	domain.NotificationEmail = "test+updated@christippett.dev"
-	got, err := c.UpdateDomain(ctx, domain)
+	_, err = c.UpdateDomain(ctx, domain)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	if got.Domain != "example.com" && got.NotificationEmail == "test+updated@christippett.dev" {
-		t.Errorf("domain returned unexpected object: %s vs %s", got.Domain, domain.Domain)
+	updated, err := c.GetDomain(ctx, "example.com")
+	if err != nil {
+		t.Fatal(err)
 	}
 
-	if err = c.DeleteDomain(ctx, got); err != nil {
+	if updated.NotificationEmail != "test+updated@christippett.dev" {
+		t.Error("domain returned unexpected object")
+	}
+
+	if err = c.DeleteDomain(ctx, updated); err != nil {
 		t.Fatal(err)
+	}
+}
+
+func TestIntegration_AliasCRUD(t *testing.T) {
+	c := setupClient(t)
+	ctx := context.Background()
+	d := "example.com"
+
+	_, err := c.AddDomain(ctx, &Domain{Domain: d})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	alias, err := c.CreateAlias(ctx, d, &Alias{
+		Alias:   "test",
+		Forward: "test@christippett.dev",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	alias.Forward = "test+updated@christippett.dev"
+	alias, err = c.UpdateAlias(ctx, d, alias)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	domain, err := c.GetDomain(ctx, d)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	defer c.DeleteDomain(ctx, domain)
+
+	// +1 alias to account for the default alias '*'
+	aliasCount := len(*domain.Aliases)
+	if aliasCount != 2 {
+		t.Errorf("domain has unexpected alias count: %d", aliasCount)
+	}
+
+	// compare updated alias with last alias
+	a := (*domain.Aliases)[len(*domain.Aliases)-1]
+	if a.Alias != alias.Alias || a.Forward != alias.Forward {
+		t.Error("updated alias does not match domain alias")
 	}
 }
