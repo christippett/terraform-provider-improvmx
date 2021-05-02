@@ -60,14 +60,16 @@ type Response struct {
 
 type Account struct {
 	BillingEmail   string        `json:"billing_email"`
-	CancelsOn      int64         `json:"cancels_on"`
+	CancelsOn      interface{}   `json:"cancels_on"`
 	CardBrand      string        `json:"card_brand"`
 	CompanyDetails string        `json:"company_details"`
 	CompanyName    string        `json:"company_name"`
-	CompanyVat     string        `json:"company_vat"`
+	CompanyVat     interface{}   `json:"company_vat"`
 	Country        string        `json:"country"`
 	Created        int64         `json:"created"`
 	Email          string        `json:"email"`
+	EmailHash      string        `json:"email_hash"`
+	IsOtpEnabled   bool          `json:"is_otp_enabled"`
 	Last4          string        `json:"last4"`
 	Limits         *AccountLimit `json:"limits"`
 	LockReason     string        `json:"lock_reason"`
@@ -81,7 +83,11 @@ type Account struct {
 
 type AccountLimit struct {
 	Aliases      int `json:"aliases"`
+	API          int `json:"api"`
+	Credentials  int `json:"credentials"`
 	DailyQuota   int `json:"daily_quota"`
+	DailySend    int `json:"daily_send"`
+	Destinations int `json:"destinations"`
 	Domains      int `json:"domains"`
 	Ratelimit    int `json:"ratelimit"`
 	Redirections int `json:"redirections"`
