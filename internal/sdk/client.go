@@ -203,7 +203,8 @@ func (c *client) ListSMTPCredentials(ctx context.Context, domain string) (*[]SMT
 
 func (c *client) CreateSMTPCredential(ctx context.Context, domain string, credential *WriteSMTPCredential) (*SMTPCredential, error) {
 	var result struct {
-		Credential *SMTPCredential `json:"credential,omitempty"`
+		Credential         *SMTPCredential `json:"credential,omitempty"`
+		RequiresNewMxCheck bool            `json:"requires_new_mx_check,omitempty"`
 		Response
 	}
 

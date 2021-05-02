@@ -2,10 +2,13 @@ package improvmx
 
 import (
 	"context"
+	"io/ioutil"
 	"net/http"
 	"os"
 	"testing"
 	"time"
+
+	"github.com/google/go-cmp/cmp"
 )
 
 func setupClient(t *testing.T) Client {
@@ -17,12 +20,13 @@ func setupClient(t *testing.T) Client {
 	httpClient := http.Client{
 		Timeout: time.Second * 20,
 	}
+	debugOutput := ioutil.Discard // os.Stdout
 
 	return NewClient(
 		"https://api.improvmx.com/v3",
 		apiKey,
 		&httpClient,
-		os.Stdout,
+		debugOutput,
 	)
 }
 
@@ -39,37 +43,58 @@ func TestIntegration_Account(t *testing.T) {
 func TestIntegration_ListDomains(t *testing.T) {
 	c := setupClient(t)
 	ctx := context.Background()
+	var count int
 
+	// get current domain count
+	domains, err := c.ListDomains(ctx, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	initCount := len(*domains)
+
+	// +1 domain
 	domain, err := c.AddDomain(ctx, &Domain{Domain: "example.com"})
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	domains, err := c.ListDomains(ctx, nil)
+	domainsAfterCreate, err := c.ListDomains(ctx, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
+	count = len(*domainsAfterCreate)
 
-	defer c.DeleteDomain(ctx, domain)
+	if count != initCount+1 {
+		t.Errorf("unexpected domain count: wanted %d, got %d", initCount+1, count)
+	}
 
-	if len(*domains) < 1 {
-		t.Errorf("domain list returned unexpected count")
+	// -1 domain
+	if err = c.DeleteDomain(ctx, domain); err != nil {
+		t.Fatal(err)
+	}
+
+	domainsAfterDelete, err := c.ListDomains(ctx, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	count = len(*domainsAfterDelete)
+
+	if initCount != count {
+		t.Errorf("unexpected domain count: wanted %d, got %d", initCount, count)
 	}
 }
 
-func TestIntegration_DomainCRUD(t *testing.T) {
+func TestIntegration_UpdateDomain(t *testing.T) {
 	c := setupClient(t)
 	ctx := context.Background()
 
-	domain, err := c.AddDomain(ctx, &Domain{
-		Domain:            "example.com",
-		NotificationEmail: "test@christippett.dev",
-	})
+	domain, err := c.AddDomain(ctx, &Domain{Domain: "example.com"})
 	if err != nil {
 		t.Fatal(err)
 	}
+	defer c.DeleteDomain(ctx, domain)
 
-	domain.NotificationEmail = "test+updated@christippett.dev"
+	domain.NotificationEmail = "test@piedpiper.com"
 	_, err = c.UpdateDomain(ctx, domain)
 	if err != nil {
 		t.Fatal(err)
@@ -80,60 +105,43 @@ func TestIntegration_DomainCRUD(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if updated.NotificationEmail != "test+updated@christippett.dev" {
+	if updated.NotificationEmail != "test@piedpiper.com" {
 		t.Error("domain returned unexpected object")
 	}
-
-	if err = c.DeleteDomain(ctx, updated); err != nil {
-		t.Fatal(err)
-	}
 }
 
-func TestIntegration_AliasCRUD(t *testing.T) {
+func TestIntegration_CheckDomain(t *testing.T) {
 	c := setupClient(t)
 	ctx := context.Background()
-	d := "example.com"
 
-	_, err := c.AddDomain(ctx, &Domain{Domain: d})
+	domain, err := c.AddDomain(ctx, &Domain{Domain: "example.com"})
 	if err != nil {
 		t.Fatal(err)
 	}
-
-	alias, err := c.CreateAlias(ctx, d, &Alias{
-		Alias:   "test",
-		Forward: "test@christippett.dev",
-	})
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	alias.Forward = "test+updated@christippett.dev"
-	alias, err = c.UpdateAlias(ctx, d, alias)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	domain, err := c.GetDomain(ctx, d)
-	if err != nil {
-		t.Fatal(err)
-	}
-
 	defer c.DeleteDomain(ctx, domain)
 
-	// +1 alias to account for the default alias '*'
-	aliasCount := len(*domain.Aliases)
-	if aliasCount != 2 {
-		t.Errorf("domain has unexpected alias count: %d", aliasCount)
+	check, err := c.CheckDomain(ctx, domain)
+	if err != nil {
+		t.Fatal(err)
 	}
 
-	// compare updated alias with last alias
-	a := (*domain.Aliases)[len(*domain.Aliases)-1]
-	if a.Alias != alias.Alias || a.Forward != alias.Forward {
-		t.Error("updated alias does not match domain alias")
+	// check MX record (value slice)
+	expected := RecordValues{
+		"mx1.improvmx.com",
+		"mx2.improvmx.com",
+	}
+	if !cmp.Equal(*check.Mx.Expected, expected) {
+		t.Errorf("domain check returned unexpected MX record: wanted %s, got %s", expected, check.Mx.Expected)
+	}
+
+	// check SPF record (single value)
+	expected = RecordValues{"v=spf1 include:spf.improvmx.com -all"}
+	if !cmp.Equal(*check.Spf.Expected, expected) {
+		t.Errorf("domain check returned unexpected SPF record: wanted %s, got %s", expected, check.Spf.Expected)
 	}
 }
 
-func TestIntegration_CredentialsCRUD(t *testing.T) {
+func TestIntegration_Alias(t *testing.T) {
 	c := setupClient(t)
 	ctx := context.Background()
 	d := "example.com"
@@ -142,8 +150,56 @@ func TestIntegration_CredentialsCRUD(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	defer c.DeleteDomain(ctx, domain)
 
-	_, err = c.CreateSMTPCredential(ctx, d, &WriteSMTPCredential{
+	alias, err := c.CreateAlias(ctx, d, &Alias{
+		Alias:   "test",
+		Forward: "test@piedpiper.com",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	alias.Forward = "test+updated@piedpiper.com"
+	alias, err = c.UpdateAlias(ctx, d, alias)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	aliases, err := c.ListAliases(ctx, d)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// +1 alias to account for the default alias '*'
+	aliasCount := len(*aliases)
+	if aliasCount != 2 {
+		t.Errorf("domain has unexpected alias count: %d", aliasCount)
+	}
+
+	// compare updated alias with last alias
+	a := (*aliases)[aliasCount-1]
+	if a.Alias != alias.Alias || a.Forward != alias.Forward {
+		t.Error("updated alias does not match domain alias")
+	}
+
+	if err = c.DeleteAlias(ctx, d, alias); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestIntegration_SMTPCredentials(t *testing.T) {
+	c := setupClient(t)
+	ctx := context.Background()
+	d := "example.com"
+
+	domain, err := c.AddDomain(ctx, &Domain{Domain: d})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer c.DeleteDomain(ctx, domain)
+
+	credential, err := c.CreateSMTPCredential(ctx, d, &WriteSMTPCredential{
 		Username: "test-user",
 		Password: "password123",
 	})
@@ -156,8 +212,6 @@ func TestIntegration_CredentialsCRUD(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	defer c.DeleteDomain(ctx, domain)
-
 	credsCount := len(*creds)
 	if credsCount != 1 {
 		t.Errorf("domain has unexpected credential count: %d", credsCount)
@@ -167,5 +221,9 @@ func TestIntegration_CredentialsCRUD(t *testing.T) {
 	created := (*creds)[credsCount-1]
 	if created.Username != "test-user" {
 		t.Error("created credential does not match domain")
+	}
+
+	if err = c.DeleteSMTPCredential(ctx, d, credential); err != nil {
+		t.Fatal(err)
 	}
 }

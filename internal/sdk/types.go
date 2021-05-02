@@ -151,7 +151,7 @@ type Check struct {
 }
 
 type Record struct {
-	Expected string        `json:"expected"`
+	Expected *RecordValues `json:"expected"`
 	Valid    bool          `json:"valid"`
 	Values   *RecordValues `json:"values"`
 }
