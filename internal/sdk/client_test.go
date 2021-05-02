@@ -26,6 +26,16 @@ func setupClient(t *testing.T) Client {
 	)
 }
 
+func TestIntegration_Account(t *testing.T) {
+	c := setupClient(t)
+	ctx := context.Background()
+
+	_, err := c.GetAccount(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
 func TestIntegration_ListDomains(t *testing.T) {
 	c := setupClient(t)
 	ctx := context.Background()
@@ -120,5 +130,42 @@ func TestIntegration_AliasCRUD(t *testing.T) {
 	a := (*domain.Aliases)[len(*domain.Aliases)-1]
 	if a.Alias != alias.Alias || a.Forward != alias.Forward {
 		t.Error("updated alias does not match domain alias")
+	}
+}
+
+func TestIntegration_CredentialsCRUD(t *testing.T) {
+	c := setupClient(t)
+	ctx := context.Background()
+	d := "example.com"
+
+	domain, err := c.AddDomain(ctx, &Domain{Domain: d})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = c.CreateSMTPCredential(ctx, d, &WriteSMTPCredential{
+		Username: "test-user",
+		Password: "password123",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	creds, err := c.ListSMTPCredentials(ctx, d)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	defer c.DeleteDomain(ctx, domain)
+
+	credsCount := len(*creds)
+	if credsCount != 1 {
+		t.Errorf("domain has unexpected credential count: %d", credsCount)
+	}
+
+	// compare updated alias with last alias
+	created := (*creds)[credsCount-1]
+	if created.Username != "test-user" {
+		t.Error("created credential does not match domain")
 	}
 }
