@@ -1,6 +1,7 @@
 package improvmx
 
 import (
+	"fmt"
 	"regexp"
 	"testing"
 
@@ -8,25 +9,44 @@ import (
 )
 
 func TestAccDataSourceDomain(t *testing.T) {
-	t.Skip("data source not yet implemented, remove this once you add your own code")
+	domain := "example.com"
 
-	resource.UnitTest(t, resource.TestCase{
+	resource.Test(t, resource.TestCase{
 		PreCheck:          func() { testAccPreCheck(t) },
 		ProviderFactories: providerFactories,
 		Steps: []resource.TestStep{
 			{
-				Config: testAccDataSourceImprovMX,
+				Config: fmt.Sprintf(`
+				resource "improvmx_domain" "test" {
+					domain = "%[1]s"
+
+					alias {
+						alias = "hello"
+						forward = "hello@piedpiper.com"
+					}
+				}
+
+				data "improvmx_domain" "test" {
+					domain = "%[1]s"
+					depends_on = [improvmx_domain.test]
+				}
+				`, domain),
 				Check: resource.ComposeTestCheckFunc(
-					resource.TestMatchResourceAttr(
-						"data.improvmx_domain.foo", "sample_attribute", regexp.MustCompile("^ba")),
+					resource.TestCheckResourceAttr(
+						"data.improvmx_domain.test", "domain",
+						domain,
+					),
+					resource.TestMatchTypeSetElemNestedAttrs(
+						"data.improvmx_domain.test",
+						"alias.*",
+						map[string]*regexp.Regexp{
+							"alias":   regexp.MustCompile(`^hello$`),
+							"forward": regexp.MustCompile(`^hello\@piedpiper\.com$`),
+							"id":      regexp.MustCompile(`\d+`),
+						},
+					),
 				),
 			},
 		},
 	})
 }
-
-const testAccDataSourceImprovMX = `
-data "improvmx_domain" "foo" {
-  sample_attribute = "bar"
-}
-`

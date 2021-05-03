@@ -3,6 +3,7 @@ package improvmx
 import (
 	"context"
 	"fmt"
+	"regexp"
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
@@ -35,13 +36,36 @@ func TestAccResourceDomain(t *testing.T) {
 				Config: fmt.Sprintf(`
 					resource "improvmx_domain" "test" {
 						domain = "%s"
+
+						alias {
+							alias = "hello"
+							forward = "hello@piedpiper.com"
+						}
+
+						alias {
+							alias = "contact"
+							forward = "contact@piedpiper.com"
+						}
 					}
 				`, domain),
 				PreventPostDestroyRefresh: true,
 				Destroy:                   false,
 				Check: resource.ComposeTestCheckFunc(
-					resource.TestCheckResourceAttr("improvmx_domain.test", "display", domain),
-					testAccCheckDomainAliasCount("improvmx_domain.test", 1),
+					resource.TestCheckResourceAttr(
+						"improvmx_domain.test",
+						"display",
+						domain,
+					),
+					testAccCheckDomainAliasCount("improvmx_domain.test", 2),
+					resource.TestMatchTypeSetElemNestedAttrs(
+						"improvmx_domain.test",
+						"alias.*",
+						map[string]*regexp.Regexp{
+							"alias":   regexp.MustCompile(`^hello$`),
+							"forward": regexp.MustCompile(`^hello\@piedpiper\.com$`),
+							"id":      regexp.MustCompile(`\d+`),
+						},
+					),
 				),
 			},
 		},
