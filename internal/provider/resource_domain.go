@@ -63,7 +63,7 @@ func resourceDomain() *schema.Resource {
 			"alias": {
 				Description: "List of domain aliases.",
 				Type:        schema.TypeSet,
-				Set:         hashAlias,
+				Set:         hashSetValue("alias"),
 				Optional:    true,
 				Elem: &schema.Resource{
 					Schema: map[string]*schema.Schema{
@@ -87,11 +87,6 @@ func resourceDomain() *schema.Resource {
 			},
 		},
 	}
-}
-
-func hashAlias(v interface{}) int {
-	alias := v.(map[string]interface{})["alias"].(string)
-	return hash(alias)
 }
 
 func resourceDomainCreate(ctx context.Context, d *schema.ResourceData, meta interface{}) (diags diag.Diagnostics) {
@@ -224,7 +219,7 @@ func domainResourceData(domain *improvmx.Domain, d *schema.ResourceData) error {
 		}
 		aliasList[i] = alias
 	}
-	aliases := schema.NewSet(hashAlias, aliasList)
+	aliases := schema.NewSet(hashSetValue("alias"), aliasList)
 	d.Set("alias", aliases)
 
 	return nil

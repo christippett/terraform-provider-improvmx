@@ -60,7 +60,7 @@ func dataSourceDomain() *schema.Resource {
 			"alias": {
 				Description: "List of domain alias.",
 				Type:        schema.TypeSet,
-				Set:         hashAlias,
+				Set:         hashSetValue("alias"),
 				MinItems:    0,
 				Computed:    true,
 				Elem: &schema.Resource{
