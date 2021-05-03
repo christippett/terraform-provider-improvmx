@@ -11,7 +11,7 @@ import (
 func dataSourceDomain() *schema.Resource {
 	return &schema.Resource{
 		// This description is used by the documentation generator and the language server.
-		Description: "Domain data source for ImprovMX.",
+		Description: "Data source for domains.",
 
 		ReadContext: dataSourceDomainRead,
 
@@ -96,11 +96,10 @@ func dataSourceDomainRead(ctx context.Context, d *schema.ResourceData, meta inte
 		return diag.FromErr(err)
 	}
 
+	d.SetId(id)
 	if err = domainResourceData(domain, d); err != nil {
 		return diag.FromErr(err)
 	}
-
-	d.SetId(id)
 
 	return nil
 }

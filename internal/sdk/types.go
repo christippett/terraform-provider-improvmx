@@ -21,7 +21,7 @@ type Client interface {
 	GetDomain(ctx context.Context, domain string) (*Domain, error)
 	UpdateDomain(ctx context.Context, domain *Domain) (*Domain, error)
 	DeleteDomain(ctx context.Context, domain *Domain) error
-	CheckDomain(ctx context.Context, domain *Domain) (*Check, error)
+	CheckDomain(ctx context.Context, domain string) (*Check, error)
 
 	ListAliases(ctx context.Context, domain string) (*[]Alias, error)
 	CreateAlias(ctx context.Context, domain string, alias *Alias) (*Alias, error)

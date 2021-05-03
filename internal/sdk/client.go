@@ -132,14 +132,14 @@ func (c *client) DeleteDomain(ctx context.Context, domain *Domain) error {
 	return nil
 }
 
-func (c *client) CheckDomain(ctx context.Context, domain *Domain) (*Check, error) {
+func (c *client) CheckDomain(ctx context.Context, domain string) (*Check, error) {
 	var result struct {
 		Records *Check `json:"records,omitempty"`
 		Response
 	}
 
-	url := fmt.Sprintf("/domains/%s/check", domain.Domain)
-	if err := c.apiCall(ctx, http.MethodGet, url, domain, &result); err != nil {
+	url := fmt.Sprintf("/domains/%s/check", domain)
+	if err := c.apiCall(ctx, http.MethodGet, url, nil, &result); err != nil {
 		return nil, err
 	}
 	return result.Records, nil
