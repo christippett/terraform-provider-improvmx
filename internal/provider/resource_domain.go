@@ -106,7 +106,7 @@ func resourceDomainCreate(ctx context.Context, d *schema.ResourceData, meta inte
 	}
 	domain, err := c.AddDomain(ctx, &addDomain)
 	if err != nil {
-		diag.FromErr(err)
+		return diag.FromErr(err)
 	}
 	d.SetId(domain.Domain)
 
@@ -116,7 +116,7 @@ func resourceDomainCreate(ctx context.Context, d *schema.ResourceData, meta inte
 	if count > 0 {
 		defaultAliases, err := c.ListAliases(ctx, domain.Domain)
 		if err != nil {
-			diag.FromErr(err)
+			return diag.FromErr(err)
 		}
 
 		// delete default aliases when aliases are explicitly defined
@@ -185,7 +185,7 @@ func resourceDomainUpdate(ctx context.Context, d *schema.ResourceData, meta inte
 	}
 	domain, err := c.UpdateDomain(ctx, &updateDomain)
 	if err != nil {
-		diag.FromErr(err)
+		return diag.FromErr(err)
 	}
 
 	if err = domainResourceData(domain, d); err != nil {
@@ -199,7 +199,7 @@ func resourceDomainDelete(ctx context.Context, d *schema.ResourceData, meta inte
 	c := meta.(improvmx.Client)
 	err := c.DeleteDomain(ctx, &improvmx.Domain{Domain: d.Id()})
 	if err != nil {
-		diag.FromErr(err)
+		return diag.FromErr(err)
 	}
 
 	return nil
