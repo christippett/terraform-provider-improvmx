@@ -2,11 +2,8 @@ package improvmx
 
 import (
 	"context"
-	"io/ioutil"
-	"net/http"
 	"os"
 	"testing"
-	"time"
 
 	"github.com/google/go-cmp/cmp"
 )
@@ -16,18 +13,7 @@ func setupClient(t *testing.T) Client {
 	if apiKey == "" {
 		t.Fatal("'IMPROVMX_API_KEY' must be set for tests")
 	}
-
-	httpClient := http.Client{
-		Timeout: time.Second * 20,
-	}
-	debugOutput := ioutil.Discard // os.Stdout
-
-	return NewClient(
-		"https://api.improvmx.com/v3",
-		apiKey,
-		&httpClient,
-		debugOutput,
-	)
+	return NewClient("https://api.improvmx.com/v3", apiKey, nil)
 }
 
 func TestIntegration_Account(t *testing.T) {

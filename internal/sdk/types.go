@@ -10,6 +10,9 @@ import (
 )
 
 type Client interface {
+	SetUserAgent(agent string) error
+	SetHTTPClient(client *http.Client)
+
 	GetAccount(ctx context.Context) (*Account, error)
 	GetWhitelabels(ctx context.Context) (*[]Whitelabel, error)
 
@@ -36,6 +39,7 @@ type Client interface {
 type client struct {
 	apiKey     string
 	url        string
+	userAgent  *string
 	httpClient *http.Client
 	out        io.Writer
 }

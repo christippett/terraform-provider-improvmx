@@ -6,33 +6,43 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"net/http"
 	"net/http/httputil"
 	"strings"
 )
 
+const agent string = "ImprovMX-GoSDK/1.1"
+
 // NewClient constructs a Checly API client.
 func NewClient(
-	//checkly API's base url
 	baseURL,
-	//checkly's api key
 	apiKey string,
-	//optional, defaults to http.DefaultClient
-	httpClient *http.Client,
 	out io.Writer,
 ) Client {
-	c := &client{
+	if out == nil {
+		out = ioutil.Discard
+	}
+	userAgent := agent
+	return &client{
 		apiKey:     apiKey,
 		url:        baseURL,
-		httpClient: httpClient,
+		httpClient: http.DefaultClient,
 		out:        out,
+		userAgent:  &userAgent,
 	}
-	if httpClient != nil {
-		c.httpClient = httpClient
-	} else {
-		c.httpClient = http.DefaultClient
+}
+
+func (c *client) SetUserAgent(agent string) error {
+	if agent == "" {
+		return fmt.Errorf("user agent cannot be an empty string")
 	}
-	return c
+	c.userAgent = &agent
+	return nil
+}
+
+func (c *client) SetHTTPClient(client *http.Client) {
+	c.httpClient = client
 }
 
 /* ACCOUNT ⌁⌁⌁⌁⌁⌁⌁⌁⌁⌁⌁⌁⌁⌁⌁⌁⌁⌁⌁⌁⌁⌁⌁⌁⌁⌁⌁⌁⌁⌁⌁⌁⌁⌁⌁⌁⌁⌁⌁⌁⌁⌁⌁⌁⌁⌁⌁⌁⌁⌁⌁⌁⌁⌁⌁⌁⌁⌁⌁⌁⌁⌁⌁⌁⌁⌁ */
@@ -295,6 +305,9 @@ func (c *client) apiCall(
 	}
 	req.Header.Add("Authorization", "Basic  api:"+c.apiKey)
 	req.Header.Add("content-type", "application/json")
+	if c.userAgent != nil {
+		req.Header.Add("User-Agent", *c.userAgent)
+	}
 
 	// Log request output to stdout
 	requestDump, err := httputil.DumpRequestOut(req, true)
