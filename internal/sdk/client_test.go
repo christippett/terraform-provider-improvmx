@@ -80,7 +80,8 @@ func TestIntegration_UpdateDomain(t *testing.T) {
 	}
 	defer c.DeleteDomain(ctx, domain)
 
-	domain.NotificationEmail = "test@piedpiper.com"
+	webhook := "http://example.com/webhook"
+	domain.Webhook = webhook
 	_, err = c.UpdateDomain(ctx, domain)
 	if err != nil {
 		t.Fatal(err)
@@ -91,8 +92,12 @@ func TestIntegration_UpdateDomain(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if updated.NotificationEmail != "test@piedpiper.com" {
-		t.Error("domain returned unexpected object")
+	if updated.Webhook != webhook {
+		t.Errorf(
+			"domain returned unexpected value for 'webhook': wanted %s, got %s",
+			webhook,
+			updated.Webhook,
+		)
 	}
 }
 
