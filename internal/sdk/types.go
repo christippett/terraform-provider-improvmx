@@ -162,6 +162,14 @@ type Record struct {
 
 type RecordValues []string
 
+func (values RecordValues) Interface() []interface{} {
+	s := make([]interface{}, len(values))
+	for i, v := range values {
+		s[i] = v
+	}
+	return s
+}
+
 func (values RecordValues) MarshalJSON() ([]byte, error) {
 	if len(values) == 1 {
 		return []byte(fmt.Sprintf("%v", values[0])), nil
