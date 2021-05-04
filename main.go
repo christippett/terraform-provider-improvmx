@@ -5,7 +5,7 @@ import (
 	"flag"
 	"log"
 
-	"github.com/christippett/terraform-provider-improvmx/internal/provider"
+	improvmx "github.com/christippett/terraform-provider-improvmx/internal/provider"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/plugin"
 )
 
@@ -34,7 +34,7 @@ func main() {
 	flag.BoolVar(&debugMode, "debug", false, "set to true to run the provider with support for debuggers like delve")
 	flag.Parse()
 
-	opts := &plugin.ServeOpts{ProviderFunc: provider.New(version)}
+	opts := &plugin.ServeOpts{ProviderFunc: improvmx.New(version)}
 
 	if debugMode {
 		// TODO: update this string with the full name of your provider as used in your configs
