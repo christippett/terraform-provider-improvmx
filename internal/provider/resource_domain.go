@@ -93,28 +93,21 @@ func resourceDomainCreate(ctx context.Context, d *schema.ResourceData, meta inte
 	c := meta.(improvmx.Client)
 
 	// add domain
-	addDomain := improvmx.Domain{
-		Domain:            d.Get("domain").(string),
-		NotificationEmail: d.Get("notification_email").(string),
-		Whitelabel:        d.Get("whitelabel").(string),
-		Webhook:           d.Get("webhook").(string),
-	}
-	domain, err := c.AddDomain(ctx, &addDomain)
+	inputDomain := domainFromResourceData(d)
+	domain, err := c.AddDomain(ctx, inputDomain)
 	if err != nil {
 		return diag.FromErr(err)
 	}
-	d.SetId(domain.Domain)
 
-	aliases := d.Get("alias").(*schema.Set)
-	count := aliases.Len()
-
-	if count > 0 {
+	domain.Aliases = aliasesFromSet(d.Get("alias").(*schema.Set))
+	if domain.Aliases != nil {
+		// get aliases created by default when the domain is first created
 		defaultAliases, err := c.ListAliases(ctx, domain.Domain)
 		if err != nil {
 			return diag.FromErr(err)
 		}
 
-		// delete default aliases when aliases are explicitly defined
+		// delete default alias(es) if the resource has defined its own resources
 		for _, a := range *defaultAliases {
 			if err = c.DeleteAlias(ctx, domain.Domain, &a); err != nil {
 				diags = append(diags, diag.Diagnostic{
@@ -127,67 +120,68 @@ func resourceDomainCreate(ctx context.Context, d *schema.ResourceData, meta inte
 			return diags
 		}
 
-		// add aliases after domain has been created
-		for _, a := range aliases.List() {
-			aMap := a.(map[string]interface{})
-			alias := improvmx.Alias{
-				Alias:   aMap["alias"].(string),
-				Forward: aMap["forward"].(string),
-			}
+		// add aliases after domain has been created and any default aliases have
+		// been deleted
+		for _, alias := range *domain.Aliases {
 			_, err = c.CreateAlias(ctx, domain.Domain, &alias)
 			if err != nil {
-				diags = append(diags, diag.Diagnostic{
-					Severity: diag.Error,
-					Summary:  err.Error(),
-				})
+				diags = append(diags, diag.Diagnostic{Severity: diag.Error, Summary: err.Error()})
 			}
 		}
 		if diags.HasError() {
 			return diags
 		}
-
-		// refresh domain before populating resource
-		return resourceDomainRead(ctx, d, meta)
 	}
 
-	// ignore domain aliases if not defined on the resource
-	domain.Aliases = nil
-	domainResourceData(domain, d)
-	return nil
+	return resourceDomainRead(ctx, d, meta)
+}
+
+func resourceDomainUpdate(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+	c := meta.(improvmx.Client)
+
+	inputDomain := domainFromResourceData(d)
+	domain, err := c.UpdateDomain(ctx, inputDomain)
+	if err != nil {
+		return diag.FromErr(err)
+	}
+
+	domain.Aliases = aliasesFromSet(d.Get("alias").(*schema.Set))
+	if d.HasChange("alias") {
+		old, new := getSetChange(d, "alias")
+		// create if alias in new, but not in old
+		for _, a := range *aliasesFromSet(new.Difference(old)) {
+			_, err = c.CreateAlias(ctx, domain.Domain, &a)
+			if err != nil {
+				return diag.FromErr(err)
+			}
+		}
+		// delete if alias in old, but not in new
+		for _, a := range *aliasesFromSet(old.Difference(new)) {
+			if err = c.DeleteAlias(ctx, domain.Domain, &a); err != nil {
+				return diag.FromErr(err)
+			}
+		}
+		// update if alias in both old and new
+		for _, a := range *aliasesFromSet(new.Intersection(old)) {
+			_, err = c.UpdateAlias(ctx, domain.Domain, &a)
+			if err != nil {
+				return diag.FromErr(err)
+			}
+		}
+	}
+
+	return resourceDomainRead(ctx, d, meta)
 }
 
 func resourceDomainRead(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	c := meta.(improvmx.Client)
+
 	domain, err := c.GetDomain(ctx, d.Id())
 	if err != nil {
 		return diag.FromErr(err)
 	}
 
-	if err = domainResourceData(domain, d); err != nil {
-		return diag.FromErr(err)
-	}
-
-	return nil
-}
-
-func resourceDomainUpdate(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
-	c := meta.(improvmx.Client)
-	updateDomain := improvmx.Domain{
-		Domain:            d.Id(),
-		NotificationEmail: d.Get("notification_email").(string),
-		Whitelabel:        d.Get("whitelabel").(string),
-		Webhook:           d.Get("webhook").(string),
-	}
-	domain, err := c.UpdateDomain(ctx, &updateDomain)
-	if err != nil {
-		return diag.FromErr(err)
-	}
-
-	if err = domainResourceData(domain, d); err != nil {
-		return diag.FromErr(err)
-	}
-
-	return nil
+	return resourceDataFromDomain(domain, d)
 }
 
 func resourceDomainDelete(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
@@ -200,7 +194,9 @@ func resourceDomainDelete(ctx context.Context, d *schema.ResourceData, meta inte
 	return nil
 }
 
-func domainResourceData(domain *improvmx.Domain, d *schema.ResourceData) error {
+func resourceDataFromDomain(domain *improvmx.Domain, d *schema.ResourceData) diag.Diagnostics {
+	d.SetId(domain.Domain)
+
 	d.Set("domain", domain.Domain)
 	d.Set("active", domain.Active)
 	d.Set("display", domain.Display)
@@ -228,4 +224,34 @@ func domainResourceData(domain *improvmx.Domain, d *schema.ResourceData) error {
 	d.Set("alias", aliases)
 
 	return nil
+}
+
+func aliasesFromSet(s *schema.Set) *[]improvmx.Alias {
+	if s.Len() == 0 {
+		return nil
+	}
+	aliases := make([]improvmx.Alias, s.Len())
+	for _, a := range s.List() {
+		item := a.(map[string]interface{})
+		alias := improvmx.Alias{
+			Alias:   item["alias"].(string),
+			Forward: item["forward"].(string),
+		}
+		aliases = append(aliases, alias)
+	}
+	return &aliases
+}
+
+func domainFromResourceData(d *schema.ResourceData) *improvmx.Domain {
+	return &improvmx.Domain{
+		Domain:            d.Get("domain").(string),
+		NotificationEmail: d.Get("notification_email").(string),
+		Whitelabel:        d.Get("whitelabel").(string),
+		Webhook:           d.Get("webhook").(string),
+	}
+}
+
+func getSetChange(d *schema.ResourceData, key string) (*schema.Set, *schema.Set) {
+	old, new := d.GetChange(key)
+	return old.(*schema.Set), new.(*schema.Set)
 }

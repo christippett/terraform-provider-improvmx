@@ -89,17 +89,11 @@ func dataSourceDomain() *schema.Resource {
 
 func dataSourceDomainRead(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	c := meta.(improvmx.Client)
-	id := d.Get("domain").(string)
 
-	domain, err := c.GetDomain(ctx, id)
+	domain, err := c.GetDomain(ctx, d.Get("domain").(string))
 	if err != nil {
 		return diag.FromErr(err)
 	}
 
-	d.SetId(id)
-	if err = domainResourceData(domain, d); err != nil {
-		return diag.FromErr(err)
-	}
-
-	return nil
+	return resourceDataFromDomain(domain, d)
 }
