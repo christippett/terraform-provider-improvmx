@@ -98,6 +98,7 @@ func resourceDomainCreate(ctx context.Context, d *schema.ResourceData, meta inte
 	if err != nil {
 		return diag.FromErr(err)
 	}
+	d.SetId(domain.Domain)
 
 	domain.Aliases = aliasesFromSet(d.Get("alias").(*schema.Set))
 	if domain.Aliases != nil {
@@ -133,7 +134,7 @@ func resourceDomainCreate(ctx context.Context, d *schema.ResourceData, meta inte
 		}
 	}
 
-	return resourceDomainRead(ctx, d, meta)
+	return resourceDataFromDomain(domain, d)
 }
 
 func resourceDomainUpdate(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
@@ -146,7 +147,7 @@ func resourceDomainUpdate(ctx context.Context, d *schema.ResourceData, meta inte
 	}
 
 	domain.Aliases = aliasesFromSet(d.Get("alias").(*schema.Set))
-	if d.HasChange("alias") {
+	if domain.Aliases != nil || d.HasChange("alias") {
 		old, new := getSetChange(d, "alias")
 		// create if alias in new, but not in old
 		for _, a := range *aliasesFromSet(new.Difference(old)) {
@@ -170,7 +171,7 @@ func resourceDomainUpdate(ctx context.Context, d *schema.ResourceData, meta inte
 		}
 	}
 
-	return resourceDomainRead(ctx, d, meta)
+	return resourceDataFromDomain(domain, d)
 }
 
 func resourceDomainRead(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
@@ -179,6 +180,11 @@ func resourceDomainRead(ctx context.Context, d *schema.ResourceData, meta interf
 	domain, err := c.GetDomain(ctx, d.Id())
 	if err != nil {
 		return diag.FromErr(err)
+	}
+
+	inputAliases := d.Get("alias").(*schema.Set)
+	if inputAliases.Len() == 0 {
+		domain.Aliases = nil
 	}
 
 	return resourceDataFromDomain(domain, d)
@@ -195,8 +201,6 @@ func resourceDomainDelete(ctx context.Context, d *schema.ResourceData, meta inte
 }
 
 func resourceDataFromDomain(domain *improvmx.Domain, d *schema.ResourceData) diag.Diagnostics {
-	d.SetId(domain.Domain)
-
 	d.Set("domain", domain.Domain)
 	d.Set("active", domain.Active)
 	d.Set("display", domain.Display)
@@ -213,12 +217,11 @@ func resourceDataFromDomain(domain *improvmx.Domain, d *schema.ResourceData) dia
 
 	aliasList := make([]interface{}, len(*domain.Aliases))
 	for i, a := range *domain.Aliases {
-		alias := map[string]interface{}{
+		aliasList[i] = map[string]interface{}{
 			"alias":   a.Alias,
 			"forward": a.Forward,
 			"id":      a.ID,
 		}
-		aliasList[i] = alias
 	}
 	aliases := schema.NewSet(hashSetValue("alias"), aliasList)
 	d.Set("alias", aliases)
@@ -231,13 +234,12 @@ func aliasesFromSet(s *schema.Set) *[]improvmx.Alias {
 		return nil
 	}
 	aliases := make([]improvmx.Alias, s.Len())
-	for _, a := range s.List() {
+	for i, a := range s.List() {
 		item := a.(map[string]interface{})
-		alias := improvmx.Alias{
+		aliases[i] = improvmx.Alias{
 			Alias:   item["alias"].(string),
 			Forward: item["forward"].(string),
 		}
-		aliases = append(aliases, alias)
 	}
 	return &aliases
 }

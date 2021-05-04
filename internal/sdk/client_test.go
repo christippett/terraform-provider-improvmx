@@ -111,7 +111,7 @@ func TestIntegration_CheckDomain(t *testing.T) {
 	}
 	defer c.DeleteDomain(ctx, domain)
 
-	check, err := c.CheckDomain(ctx, domain)
+	check, err := c.CheckDomain(ctx, domain.Domain)
 	if err != nil {
 		t.Fatal(err)
 	}

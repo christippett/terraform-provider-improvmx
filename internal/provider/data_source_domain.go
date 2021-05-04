@@ -94,6 +94,7 @@ func dataSourceDomainRead(ctx context.Context, d *schema.ResourceData, meta inte
 	if err != nil {
 		return diag.FromErr(err)
 	}
+	d.SetId(domain.Domain)
 
 	return resourceDataFromDomain(domain, d)
 }

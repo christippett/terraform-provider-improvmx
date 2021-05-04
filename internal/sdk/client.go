@@ -82,8 +82,8 @@ func (c *client) ListDomains(ctx context.Context, query *QueryDomain) (*[]Domain
 
 	// todo: properly parse query input and encode url
 	url := "/domains/"
-	if query.Query != "" {
-		url += "?query=" + query.Query
+	if query != nil && query.Query != "" {
+		url = url + "?query=" + query.Query
 	}
 
 	if err := c.apiCall(ctx, http.MethodGet, url, nil, &result); err != nil {
