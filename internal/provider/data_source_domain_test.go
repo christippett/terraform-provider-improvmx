@@ -9,8 +9,6 @@ import (
 )
 
 func TestAccDataSourceDomain(t *testing.T) {
-	domain := "example.com"
-
 	resource.Test(t, resource.TestCase{
 		PreCheck:          func() { testAccPreCheck(t) },
 		ProviderFactories: providerFactories,
@@ -30,11 +28,11 @@ func TestAccDataSourceDomain(t *testing.T) {
 					domain = "%[1]s"
 					depends_on = [improvmx_domain.test]
 				}
-				`, domain),
+				`, testDomain),
 				Check: resource.ComposeTestCheckFunc(
 					resource.TestCheckResourceAttr(
 						"data.improvmx_domain.test", "domain",
-						domain,
+						testDomain,
 					),
 					resource.TestMatchTypeSetElemNestedAttrs(
 						"data.improvmx_domain.test",

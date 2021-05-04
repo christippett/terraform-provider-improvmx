@@ -9,6 +9,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/http/httputil"
+	"net/url"
 	"strings"
 )
 
@@ -78,7 +79,14 @@ func (c *client) ListDomains(ctx context.Context, query *QueryDomain) (*[]Domain
 		Domains *[]Domain `json:"domains,omitempty"`
 		Response
 	}
-	if err := c.apiCall(ctx, http.MethodGet, "/domains/", query, &result); err != nil {
+
+	// todo: properly parse query input and encode url
+	url := "/domains/"
+	if query.Query != "" {
+		url += "?query=" + query.Query
+	}
+
+	if err := c.apiCall(ctx, http.MethodGet, url, nil, &result); err != nil {
 		return nil, err
 	}
 	return result.Domains, nil
@@ -283,6 +291,14 @@ func (c *client) handleResponseError(resp *http.Response) error {
 		}
 	}
 	return fmt.Errorf("response error: %s", http.StatusText(resp.StatusCode))
+}
+
+func (c *client) addQueryParams(params *map[string]string) string {
+	q := url.Values{}
+	for k, v := range *params {
+		q.Add(k, v)
+	}
+	return q.Encode()
 }
 
 func (c *client) apiCall(

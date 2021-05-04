@@ -8,8 +8,8 @@ import (
 
 func hashSetValue(key string) schema.SchemaSetFunc {
 	return func(v interface{}) int {
-		alias := v.(map[string]interface{})[key].(string)
-		return hash(alias)
+		s := v.(map[string]interface{})[key].(string)
+		return hash(s)
 	}
 }
 
