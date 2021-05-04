@@ -2,11 +2,13 @@ package improvmx
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"os"
 	"testing"
 
 	improvmx "github.com/christippett/terraform-provider-improvmx/internal/sdk"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 )
 
@@ -64,25 +66,5 @@ func TestProvider(t *testing.T) {
 func testAccPreCheck(t *testing.T) {
 	if err := os.Getenv("IMPROVMX_API_KEY"); err == "" {
 		t.Fatal("IMPROVMX_API_KEY must be set for acceptance tests")
-	}
-	resetTestDomain(t)
-}
-
-func resetTestDomain(t *testing.T) {
-	ctx := context.Background()
-	results, err := improvmxClient.ListDomains(ctx, &improvmx.QueryDomain{
-		Query: testDomain,
-	})
-	if err != nil {
-		t.Logf("error querying domains: %s", err)
-	}
-	if len(*results) > 0 {
-		// this is super lazy, should probably check if the test domain actually
-		// exists within the results before deleting
-		if err := improvmxClient.DeleteDomain(ctx, &improvmx.Domain{
-			Domain: testDomain,
-		}); err != nil {
-			t.Logf("error deleting test domain: %s", err)
-		}
 	}
 }
