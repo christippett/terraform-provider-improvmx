@@ -210,6 +210,11 @@ func domainResourceData(domain *improvmx.Domain, d *schema.ResourceData) error {
 	d.Set("whitelabel", domain.Whitelabel)
 	d.Set("added", domain.Added)
 
+	// return early if there's no aliases to process
+	if domain.Aliases == nil {
+		return nil
+	}
+
 	aliasList := make([]interface{}, len(*domain.Aliases))
 	for i, a := range *domain.Aliases {
 		alias := map[string]interface{}{
