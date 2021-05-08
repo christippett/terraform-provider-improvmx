@@ -11,8 +11,6 @@ import (
 )
 
 func TestAccResourceDomain(t *testing.T) {
-	// t.Skip("resource not yet implemented, remove this once you add your own code")
-	domain := "example.com"
 
 	resource.Test(t, resource.TestCase{
 		PreCheck:          func() { testAccPreCheck(t) },
@@ -47,14 +45,14 @@ func TestAccResourceDomain(t *testing.T) {
 							forward = "contact@piedpiper.com"
 						}
 					}
-				`, domain),
+				`, testDomain),
 				PreventPostDestroyRefresh: true,
 				Destroy:                   false,
 				Check: resource.ComposeTestCheckFunc(
 					resource.TestCheckResourceAttr(
 						"improvmx_domain.test",
 						"display",
-						domain,
+						testDomain,
 					),
 					testAccCheckDomainAliasCount("improvmx_domain.test", 2),
 					resource.TestMatchTypeSetElemNestedAttrs(

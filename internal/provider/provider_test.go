@@ -9,7 +9,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 )
 
-const testDomain = "example.com"
+const testDomain = "terraform-provider-improvmx.com"
 
 var improvmxClient improvmx.Client
 var providerFactories map[string]func() (*schema.Provider, error)
