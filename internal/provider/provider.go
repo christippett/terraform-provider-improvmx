@@ -44,6 +44,7 @@ func New(version string) func() *schema.Provider {
 			DataSourcesMap: map[string]*schema.Resource{
 				"improvmx_domain": dataSourceDomain(),
 				"improvmx_check":  dataSourceDomainCheck(),
+				"improvmx_dns":    dataSourceDNS(),
 			},
 			ResourcesMap: map[string]*schema.Resource{
 				"improvmx_domain": resourceDomain(),
