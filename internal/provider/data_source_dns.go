@@ -38,7 +38,7 @@ func dataSourceDNS() *schema.Resource {
 							Type:        schema.TypeString,
 							Computed:    true,
 						},
-						"data": {
+						"value": {
 							Description: "Data for this record.",
 							Type:        schema.TypeString,
 							Computed:    true,
@@ -79,9 +79,9 @@ func makeRecords(r *improvmx.RecordValues, recordType, name string) []map[string
 	rec := make([]map[string]interface{}, len(*r))
 	for i, v := range *r {
 		rec[i] = map[string]interface{}{
-			"type": recordType,
-			"name": name,
-			"data": v,
+			"type":  recordType,
+			"name":  name,
+			"value": v,
 		}
 	}
 	return rec
