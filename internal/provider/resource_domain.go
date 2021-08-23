@@ -64,6 +64,30 @@ func resourceDomain() *schema.Resource {
 				Type:        schema.TypeInt,
 				Computed:    true,
 			},
+			"dns": {
+				Description: "Domain DNS records.",
+				Type:        schema.TypeList,
+				Computed:    true,
+				Elem: &schema.Resource{
+					Schema: map[string]*schema.Schema{
+						"type": {
+							Description: "Resource record type. Example: `MX`. Possible values are `MX`, `TXT`, and `CNAME`.",
+							Type:        schema.TypeString,
+							Computed:    true,
+						},
+						"name": {
+							Description: "Relative name of the object affected by this record. Only applicable for CNAME records. Example: 'dkimprovmx1._domainkey'.",
+							Type:        schema.TypeString,
+							Computed:    true,
+						},
+						"value": {
+							Description: "Data for this record.",
+							Type:        schema.TypeString,
+							Computed:    true,
+						},
+					},
+				},
+			},
 			"alias": {
 				Description: "List of domain aliases.",
 				Type:        schema.TypeSet,
@@ -104,6 +128,7 @@ func resourceDomainCreate(ctx context.Context, d *schema.ResourceData, meta inte
 	}
 	d.SetId(domain.Domain)
 
+	// domain email aliases
 	domain.Aliases = aliasesFromSet(d.Get("alias").(*schema.Set))
 	if domain.Aliases != nil {
 		// get aliases created by default when the domain is first created
@@ -138,7 +163,7 @@ func resourceDomainCreate(ctx context.Context, d *schema.ResourceData, meta inte
 		}
 	}
 
-	return resourceDataFromDomain(domain, d)
+	return resourceDomainRead(ctx, d, meta)
 }
 
 func resourceDomainUpdate(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
@@ -175,7 +200,7 @@ func resourceDomainUpdate(ctx context.Context, d *schema.ResourceData, meta inte
 		}
 	}
 
-	return resourceDataFromDomain(domain, d)
+	return resourceDomainRead(ctx, d, meta)
 }
 
 func resourceDomainRead(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
@@ -185,6 +210,20 @@ func resourceDomainRead(ctx context.Context, d *schema.ResourceData, meta interf
 	if err != nil {
 		return diag.FromErr(err)
 	}
+
+	// check domain
+	check, err := c.CheckDomain(ctx, domain.Domain)
+	if err != nil {
+		return diag.FromErr(err)
+	}
+
+	var dns []map[string]interface{}
+	dns = append(dns, makeDNSRecord(check.Mx.Expected, "MX", "")...)
+	dns = append(dns, makeDNSRecord(check.Spf.Expected, "TXT", "")...)
+	dns = append(dns, makeDNSRecord(check.Dmarc.Expected, "TXT", "")...)
+	dns = append(dns, makeDNSRecord(check.Dkim1.Expected, "CNAME", "dkimprovmx1._domainkey")...)
+	dns = append(dns, makeDNSRecord(check.Dkim2.Expected, "CNAME", "dkimprovmx2._domainkey")...)
+	d.Set("dns", dns)
 
 	inputAliases := d.Get("alias").(*schema.Set)
 	if inputAliases.Len() == 0 {
@@ -230,6 +269,13 @@ func resourceDataFromDomain(domain *improvmx.Domain, d *schema.ResourceData) dia
 	aliases := schema.NewSet(hashSetValue("alias"), aliasList)
 	d.Set("alias", aliases)
 
+	dnsList := []map[string]interface{}{
+		0: {
+			"mx": []string{"mx1.improvmx.com"},
+		},
+	}
+	d.Set("dns_settings", dnsList)
+
 	return nil
 }
 
@@ -260,4 +306,19 @@ func domainFromResourceData(d *schema.ResourceData) *improvmx.Domain {
 func getSetChange(d *schema.ResourceData, key string) (*schema.Set, *schema.Set) {
 	old, new := d.GetChange(key)
 	return old.(*schema.Set), new.(*schema.Set)
+}
+
+func makeDNSRecord(r *improvmx.RecordValues, recordType, name string) []map[string]interface{} {
+	if r == nil {
+		return nil
+	}
+	rec := make([]map[string]interface{}, len(*r))
+	for i, v := range *r {
+		rec[i] = map[string]interface{}{
+			"type":  recordType,
+			"name":  name,
+			"value": v,
+		}
+	}
+	return rec
 }

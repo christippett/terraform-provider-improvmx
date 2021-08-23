@@ -3,7 +3,6 @@ package improvmx
 import (
 	"context"
 
-	improvmx "github.com/christippett/terraform-provider-improvmx/internal/sdk"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 )
@@ -57,6 +56,30 @@ func dataSourceDomain() *schema.Resource {
 				Type:        schema.TypeInt,
 				Computed:    true,
 			},
+			"dns": {
+				Description: "Domain DNS records.",
+				Type:        schema.TypeList,
+				Computed:    true,
+				Elem: &schema.Resource{
+					Schema: map[string]*schema.Schema{
+						"type": {
+							Description: "Resource record type. Example: `MX`. Possible values are `MX`, `TXT`, and `CNAME`.",
+							Type:        schema.TypeString,
+							Computed:    true,
+						},
+						"name": {
+							Description: "Relative name of the object affected by this record. Only applicable for CNAME records. Example: 'dkimprovmx1._domainkey'.",
+							Type:        schema.TypeString,
+							Computed:    true,
+						},
+						"value": {
+							Description: "Data for this record.",
+							Type:        schema.TypeString,
+							Computed:    true,
+						},
+					},
+				},
+			},
 			"alias": {
 				Description: "List of domain alias.",
 				Type:        schema.TypeSet,
@@ -88,13 +111,6 @@ func dataSourceDomain() *schema.Resource {
 }
 
 func dataSourceDomainRead(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
-	c := meta.(improvmx.Client)
-
-	domain, err := c.GetDomain(ctx, d.Get("domain").(string))
-	if err != nil {
-		return diag.FromErr(err)
-	}
-	d.SetId(domain.Domain)
-
-	return resourceDataFromDomain(domain, d)
+	d.SetId(d.Get("domain").(string))
+	return resourceDomainRead(ctx, d, meta)
 }
