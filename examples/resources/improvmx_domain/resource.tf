@@ -1,3 +1,8 @@
 resource "improvmx_domain" "example" {
-  sample_attribute = "foo"
+  domain = "piedpiper.com"
+
+  alias {
+    alias   = "hello"
+    forward = "me@example.com"
+  }
 }
