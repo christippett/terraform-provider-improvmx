@@ -19,7 +19,7 @@ func init() {
 	// schema.SchemaDescriptionBuilder = func(s *schema.Schema) string {
 	// 	desc := s.Description
 	// 	if s.Default != nil {
-	// 		desc += fmt.Sprintf(" Defaults to `%v`.", s.Default)
+	// 		desc += fmt.Sprintf("\n\nDefault: `%v`.", s.Default)
 	// 	}
 	// 	return strings.TrimSpace(desc)
 	// }
@@ -30,14 +30,17 @@ func New(version string) func() *schema.Provider {
 		p := &schema.Provider{
 			Schema: map[string]*schema.Schema{
 				"base_url": {
-					Type:     schema.TypeString,
-					Optional: true,
+					Type:        schema.TypeString,
+					Description: "The base URL used to access ImprovMX’s API.",
+					Optional:    true,
 					DefaultFunc: schema.EnvDefaultFunc(
 						"IMPROVMX_BASE_URL", "https://api.improvmx.com/v3"),
 				},
 				"api_key": {
 					Type:        schema.TypeString,
+					Description: "API key used to access ImprovMX's API. Refer to the [ImprovMX API documentation](https://improvmx.com/api/) for instructions on obtaining an API token.",
 					Required:    true,
+					Sensitive:   true,
 					DefaultFunc: schema.EnvDefaultFunc("IMPROVMX_API_KEY", nil),
 				},
 			},

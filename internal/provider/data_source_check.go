@@ -11,13 +11,13 @@ import (
 func dataSourceDomainCheck() *schema.Resource {
 	return &schema.Resource{
 		// This description is used by the documentation generator and the language server.
-		Description: "Data source for checking if the MX entries on a domain are valid.",
+		Description: "Returns the result of ImprovMX's domain check, including validation of the domain's DNS configuration.",
 
 		ReadContext: dataSourceDomainCheckRead,
 
 		Schema: map[string]*schema.Schema{
 			"domain": {
-				Description: "Name of the domain.",
+				Description: "Domain name.",
 				Type:        schema.TypeString,
 				Required:    true,
 				ForceNew:    true,
@@ -37,16 +37,16 @@ func dataSourceDomainCheck() *schema.Resource {
 				Type:        schema.TypeBool,
 				Computed:    true,
 			},
-			"mx":    recordSchema("MX records."),
-			"dkim1": recordSchema("DKIM records."),
-			"dkim2": recordSchema("DKIM records."),
-			"dmarc": recordSchema("DMARC records."),
-			"spf":   recordSchema("SPF records."),
+			"mx":    checkRecordSchemaFactory("`mx` record validation."),
+			"dkim1": checkRecordSchemaFactory("`dkim1` record validation."),
+			"dkim2": checkRecordSchemaFactory("`dkim2` record validation."),
+			"dmarc": checkRecordSchemaFactory("`dmarc` record validation."),
+			"spf":   checkRecordSchemaFactory("`spf` record validation."),
 		},
 	}
 }
 
-func recordSchema(description string) *schema.Schema {
+func checkRecordSchemaFactory(description string) *schema.Schema {
 	return &schema.Schema{
 		Description: description,
 		Type:        schema.TypeList,
@@ -96,15 +96,15 @@ func checkResourceData(check *improvmx.Check, d *schema.ResourceData) error {
 	d.Set("provider_name", check.Provider)
 	d.Set("advanced", check.Advanced)
 	d.Set("valid", check.Valid)
-	d.Set("mx", recordResourceData(check.Mx))
-	d.Set("dkim1", recordResourceData(check.Dkim1))
-	d.Set("dkim2", recordResourceData(check.Dkim2))
-	d.Set("dmarc", recordResourceData(check.Dmarc))
-	d.Set("spf", recordResourceData(check.Spf))
+	d.Set("mx", checkRecordResourceData(check.Mx))
+	d.Set("dkim1", checkRecordResourceData(check.Dkim1))
+	d.Set("dkim2", checkRecordResourceData(check.Dkim2))
+	d.Set("dmarc", checkRecordResourceData(check.Dmarc))
+	d.Set("spf", checkRecordResourceData(check.Spf))
 	return nil
 }
 
-func recordResourceData(record *improvmx.Record) *[]map[string]interface{} {
+func checkRecordResourceData(record *improvmx.Record) *[]map[string]interface{} {
 	m := make([]map[string]interface{}, 1)
 	m[0] = map[string]interface{}{
 		"expected": recordSet(record.Expected),
