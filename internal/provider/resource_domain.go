@@ -8,10 +8,103 @@ import (
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 )
 
+var domainSchema = map[string]*schema.Schema{
+	"domain": {
+		Description: "Domain name.",
+		Type:        schema.TypeString,
+		Required:    true,
+		ForceNew:    true,
+	},
+	"notification_email": {
+		Description: "Email to send notifications to.",
+		Type:        schema.TypeString,
+		Optional:    true,
+	},
+	"whitelabel": {
+		Description: "Parent domain used when displaying DNS settings.",
+		Type:        schema.TypeString,
+		Optional:    true,
+	},
+	"active": {
+		Description: "True if domain is currently active.",
+		Type:        schema.TypeBool,
+		Computed:    true,
+	},
+	"display": {
+		Description: "Domain display name.",
+		Type:        schema.TypeString,
+		Computed:    true,
+	},
+	"dkim_selector": {
+		Description: "DKIM selector for domain.",
+		Type:        schema.TypeString,
+		Computed:    true,
+	},
+	"webhook": {
+		Description: "Endpoint to send email events to as POST requests.",
+		Type:        schema.TypeString,
+		Optional:    true,
+	},
+	"added": {
+		Description: "Timestamp when the domain was added.",
+		Type:        schema.TypeInt,
+		Computed:    true,
+	},
+	"dns": {
+		Description: "Domain DNS configuration.",
+		Type:        schema.TypeList,
+		Computed:    true,
+		Elem: &schema.Resource{
+			Schema: map[string]*schema.Schema{
+				"type": {
+					Description: "Resource record type. Possible values are `MX`, `TXT` and `CNAME`.",
+					Type:        schema.TypeString,
+					Computed:    true,
+				},
+				"name": {
+					Description: "Relative name of the object affected by this record. Only applicable for CNAME records. Example: 'dkimprovmx1._domainkey'.",
+					Type:        schema.TypeString,
+					Computed:    true,
+				},
+				"value": {
+					Description: "Data for this record.",
+					Type:        schema.TypeString,
+					Computed:    true,
+				},
+			},
+		},
+	},
+	"alias": {
+		Description: "List of domain aliases.",
+		Type:        schema.TypeSet,
+		Set:         hashSetValue("alias"),
+		Optional:    true,
+		Elem: &schema.Resource{
+			Schema: map[string]*schema.Schema{
+				"alias": {
+					Description: "Alias to be used in front of your domain, e.g. “contact”, “info”, etc.",
+					Type:        schema.TypeString,
+					Required:    true,
+				},
+				"forward": {
+					Description: "Destination email or endpoint to forward emails to.",
+					Type:        schema.TypeString,
+					Required:    true,
+				},
+				"id": {
+					Description: "Unique ID for alias.",
+					Type:        schema.TypeInt,
+					Computed:    true,
+				},
+			},
+		},
+	},
+}
+
 func resourceDomain() *schema.Resource {
 	return &schema.Resource{
-		// This description is used by the documentation generator and the language server.
-		Description: "Sample resource in the Terraform provider scaffolding.",
+		Description: "ImprovMX domain resource.",
+		Schema:      domainSchema,
 
 		CreateContext: resourceDomainCreate,
 		ReadContext:   resourceDomainRead,
@@ -20,99 +113,6 @@ func resourceDomain() *schema.Resource {
 
 		Importer: &schema.ResourceImporter{
 			StateContext: schema.ImportStatePassthroughContext,
-		},
-
-		Schema: map[string]*schema.Schema{
-			"domain": {
-				Description: "Name of the domain.",
-				Type:        schema.TypeString,
-				Required:    true,
-				ForceNew:    true,
-			},
-			"notification_email": {
-				Description: "Email to send the notifications to.",
-				Type:        schema.TypeString,
-				Optional:    true,
-			},
-			"whitelabel": {
-				Description: "Parent’s domain that will be displayed for the DNS settings.",
-				Type:        schema.TypeString,
-				Optional:    true,
-			},
-			"active": {
-				Description: "True if domain is currently active.",
-				Type:        schema.TypeBool,
-				Computed:    true,
-			},
-			"display": {
-				Description: "Display name.",
-				Type:        schema.TypeString,
-				Computed:    true,
-			},
-			"dkim_selector": {
-				Description: "DKIM selector for domain.",
-				Type:        schema.TypeString,
-				Computed:    true,
-			},
-			"webhook": {
-				Description: "Endpoint to send email events to as POST requests.",
-				Type:        schema.TypeString,
-				Optional:    true,
-			},
-			"added": {
-				Description: "Timestamp when the domain was added.",
-				Type:        schema.TypeInt,
-				Computed:    true,
-			},
-			"dns": {
-				Description: "Domain DNS records.",
-				Type:        schema.TypeList,
-				Computed:    true,
-				Elem: &schema.Resource{
-					Schema: map[string]*schema.Schema{
-						"type": {
-							Description: "Resource record type. Example: `MX`. Possible values are `MX`, `TXT`, and `CNAME`.",
-							Type:        schema.TypeString,
-							Computed:    true,
-						},
-						"name": {
-							Description: "Relative name of the object affected by this record. Only applicable for CNAME records. Example: 'dkimprovmx1._domainkey'.",
-							Type:        schema.TypeString,
-							Computed:    true,
-						},
-						"value": {
-							Description: "Data for this record.",
-							Type:        schema.TypeString,
-							Computed:    true,
-						},
-					},
-				},
-			},
-			"alias": {
-				Description: "List of domain aliases.",
-				Type:        schema.TypeSet,
-				Set:         hashSetValue("alias"),
-				Optional:    true,
-				Elem: &schema.Resource{
-					Schema: map[string]*schema.Schema{
-						"alias": {
-							Description: "Alias to be used in front of your domain, like “contact”, “info”, etc.",
-							Type:        schema.TypeString,
-							Required:    true,
-						},
-						"forward": {
-							Description: "Destination email to forward the emails to.",
-							Type:        schema.TypeString,
-							Required:    true,
-						},
-						"id": {
-							Description: "Unique ID for alias.",
-							Type:        schema.TypeInt,
-							Computed:    true,
-						},
-					},
-				},
-			},
 		},
 	}
 }
@@ -268,13 +268,6 @@ func resourceDataFromDomain(domain *improvmx.Domain, d *schema.ResourceData) dia
 	}
 	aliases := schema.NewSet(hashSetValue("alias"), aliasList)
 	d.Set("alias", aliases)
-
-	dnsList := []map[string]interface{}{
-		0: {
-			"mx": []string{"mx1.improvmx.com"},
-		},
-	}
-	d.Set("dns_settings", dnsList)
 
 	return nil
 }
