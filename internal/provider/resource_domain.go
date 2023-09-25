@@ -130,28 +130,15 @@ func resourceDomainCreate(ctx context.Context, d *schema.ResourceData, meta inte
 
 	// domain email aliases
 	domain.Aliases = aliasesFromSet(d.Get("alias").(*schema.Set))
+
 	if domain.Aliases != nil {
-		// get aliases created by default when the domain is first created
-		defaultAliases, err := c.ListAliases(ctx, domain.Domain)
+		// delete aliases created by default when the domain is first created
+		err := c.DeleteAllAliases(ctx, domain.Domain)
 		if err != nil {
 			return diag.FromErr(err)
 		}
 
-		// delete default alias(es) if the resource has defined its own resources
-		for _, a := range *defaultAliases {
-			if err = c.DeleteAlias(ctx, domain.Domain, &a); err != nil {
-				diags = append(diags, diag.Diagnostic{
-					Severity: diag.Error,
-					Summary:  err.Error(),
-				})
-			}
-		}
-		if diags.HasError() {
-			return diags
-		}
-
-		// add aliases after domain has been created and any default aliases have
-		// been deleted
+		// create aliases after any default aliases have been removed
 		for _, alias := range *domain.Aliases {
 			_, err = c.CreateAlias(ctx, domain.Domain, &alias)
 			if err != nil {
@@ -216,30 +203,17 @@ func resourceDomainRead(ctx context.Context, d *schema.ResourceData, meta interf
 	if err != nil {
 		return diag.FromErr(err)
 	}
-
-	var dns []map[string]interface{}
-	dns = append(dns, makeDNSRecord(check.Mx.Expected, "MX", "")...)
-	dns = append(dns, makeDNSRecord(check.Spf.Expected, "TXT", "")...)
-	dns = append(dns, makeDNSRecord(check.Dmarc.Expected, "TXT", "")...)
-	dns = append(dns, makeDNSRecord(check.Dkim1.Expected, "CNAME", "dkimprovmx1._domainkey")...)
-	dns = append(dns, makeDNSRecord(check.Dkim2.Expected, "CNAME", "dkimprovmx2._domainkey")...)
+	dns := domainConfigFromCheck(check)
 	d.Set("dns", dns)
-
-	inputAliases := d.Get("alias").(*schema.Set)
-	if inputAliases.Len() == 0 {
-		domain.Aliases = nil
-	}
 
 	return resourceDataFromDomain(domain, d)
 }
 
 func resourceDomainDelete(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	c := meta.(improvmx.Client)
-	err := c.DeleteDomain(ctx, &improvmx.Domain{Domain: d.Id()})
-	if err != nil {
+	if err := c.DeleteDomain(ctx, &improvmx.Domain{Domain: d.Id()}); err != nil {
 		return diag.FromErr(err)
 	}
-
 	return nil
 }
 
@@ -254,20 +228,19 @@ func resourceDataFromDomain(domain *improvmx.Domain, d *schema.ResourceData) dia
 	d.Set("added", domain.Added)
 
 	// return early if there's no aliases to process
-	if domain.Aliases == nil {
+	if domain.Aliases == nil || len(*domain.Aliases) == 0 {
 		return nil
 	}
 
-	aliasList := make([]interface{}, len(*domain.Aliases))
+	aliases := make([]interface{}, len(*domain.Aliases))
 	for i, a := range *domain.Aliases {
-		aliasList[i] = map[string]interface{}{
+		aliases[i] = map[string]interface{}{
 			"alias":   a.Alias,
 			"forward": a.Forward,
 			"id":      a.ID,
 		}
 	}
-	aliases := schema.NewSet(hashSetValue("alias"), aliasList)
-	d.Set("alias", aliases)
+	d.Set("alias", schema.NewSet(hashSetValue("alias"), aliases))
 
 	return nil
 }
@@ -299,6 +272,15 @@ func domainFromResourceData(d *schema.ResourceData) *improvmx.Domain {
 func getSetChange(d *schema.ResourceData, key string) (*schema.Set, *schema.Set) {
 	old, new := d.GetChange(key)
 	return old.(*schema.Set), new.(*schema.Set)
+}
+
+func domainConfigFromCheck(check *improvmx.Check) (dns []map[string]interface{}) {
+	dns = append(dns, makeDNSRecord(check.Mx.Expected, "MX", "")...)
+	dns = append(dns, makeDNSRecord(check.Spf.Expected, "TXT", "")...)
+	dns = append(dns, makeDNSRecord(check.Dmarc.Expected, "TXT", "")...)
+	dns = append(dns, makeDNSRecord(check.Dkim1.Expected, "CNAME", "dkimprovmx1._domainkey")...)
+	dns = append(dns, makeDNSRecord(check.Dkim2.Expected, "CNAME", "dkimprovmx2._domainkey")...)
+	return dns
 }
 
 func makeDNSRecord(r *improvmx.RecordValues, recordType, name string) []map[string]interface{} {

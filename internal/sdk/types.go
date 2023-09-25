@@ -27,6 +27,7 @@ type Client interface {
 	CreateAlias(ctx context.Context, domain string, alias *Alias) (*Alias, error)
 	UpdateAlias(ctx context.Context, domain string, alias *Alias) (*Alias, error)
 	DeleteAlias(ctx context.Context, domain string, alias *Alias) error
+	DeleteAllAliases(ctx context.Context, domain string) error
 
 	ListSMTPCredentials(ctx context.Context, domain string) (*[]SMTPCredential, error)
 	CreateSMTPCredential(ctx context.Context, domain string, credential *WriteSMTPCredential) (*SMTPCredential, error)

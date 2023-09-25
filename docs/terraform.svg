@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8"?>
+<svg x="33.4313pt" y="0pt" width="50pt" height="50pt" viewBox="33.4313 0 50 50" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+  <g id="1">
+    <title>Layer 1</title>
+    <g id="2">
+      <title>Group</title>
+      <defs>
+        <title>Shape 7</title>
+        <g id="3">
+          <defs>
+            <path id="4" d="M66.628,32.3607 C71.1089,29.776,75.5898,27.1913,80.0706,24.6066 C80.0706,24.6066,80.0706,9.07377,80.0706,9.07377 C80.0706,9.07377,66.628,16.8443,66.628,16.8443"/>
+          </defs>
+          <use xlink:href="#4" style="fill:#4040b2;fill-opacity:1;fill-rule:evenodd;opacity:1;stroke:none;"/>
+        </g>
+      </defs>
+      <use xlink:href="#3"/>
+      <defs>
+        <title>Shape 8</title>
+        <g id="5">
+          <defs>
+            <path id="6" d="M51.71,9.07377 C56.1908,11.6639,60.6717,14.2541,65.1526,16.8443 C65.1526,22.0164,65.1526,27.1885,65.1526,32.3607 C60.6717,29.7732,56.1908,27.1858,51.71,24.5984"/>
+          </defs>
+          <use xlink:href="#6" style="fill:#5c4ee5;fill-opacity:1;fill-rule:evenodd;opacity:1;stroke:none;"/>
+        </g>
+      </defs>
+      <use xlink:href="#5"/>
+      <defs>
+        <title>Shape 9</title>
+        <g id="7">
+          <defs>
+            <path id="8" d="M36.7919,15.9344 C41.2728,18.5219,45.7537,21.1093,50.2346,23.6967 C50.2346,23.6967,50.2346,8.17213,50.2346,8.17213 C50.2346,8.17213,36.7919,0.409835,36.7919,0.409835 M51.71,41.8279 C56.1908,44.4153,60.6717,47.0027,65.1526,49.5902 C65.1526,49.5902,65.1526,34.0656,65.1526,34.0656 C60.6717,31.4781,56.1908,28.8907,51.71,26.3033"/>
+          </defs>
+          <use xlink:href="#8" style="fill:#5c4ee5;fill-opacity:1;fill-rule:evenodd;opacity:1;stroke:none;"/>
+        </g>
+      </defs>
+      <use xlink:href="#7"/>
+    </g>
+  </g>
+</svg>

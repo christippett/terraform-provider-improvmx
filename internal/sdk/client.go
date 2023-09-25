@@ -204,6 +204,20 @@ func (c *client) DeleteAlias(ctx context.Context, domain string, alias *Alias) e
 	return nil
 }
 
+func (c *client) DeleteAllAliases(ctx context.Context, domain string) error {
+	aliases, err := c.ListAliases(ctx, domain)
+	if err != nil {
+		return err
+	}
+	for _, a := range *aliases {
+		err = c.DeleteAlias(ctx, domain, &a)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 /* SMTP CREDENTIAL ⌁⌁⌁⌁⌁⌁⌁⌁⌁⌁⌁⌁⌁⌁⌁⌁⌁⌁⌁⌁⌁⌁⌁⌁⌁⌁⌁⌁⌁⌁⌁⌁⌁⌁⌁⌁⌁⌁⌁⌁⌁⌁⌁⌁⌁⌁⌁⌁⌁⌁⌁⌁⌁⌁⌁⌁⌁⌁ */
 
 func (c *client) ListSMTPCredentials(ctx context.Context, domain string) (*[]SMTPCredential, error) {
